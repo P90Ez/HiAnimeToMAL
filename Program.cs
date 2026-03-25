@@ -20,6 +20,7 @@ namespace HiAnimeToMAL
 			string ClientSecret = args[1];
 			string WatchlistFilename = args[2];
 
+			//read and parse json watchlist
 			Console.WriteLine("Reading watchlist...");
 			Watchlist? Watchlist = Watchlist.FromFile(WatchlistFilename);
 			if (Watchlist == null)
@@ -28,6 +29,7 @@ namespace HiAnimeToMAL
 				return -2;
 			}
 
+			//get access to user's MAL
 			Console.WriteLine("Logging in with MAL...");
 			MALAPI? API = MALAPI.CreateAndAuthorize(ClientId, ClientSecret);
 			if (API == null)
@@ -36,6 +38,7 @@ namespace HiAnimeToMAL
 				return -3;
 			}
 
+			//process and update watchlist
 			Console.WriteLine("Adding shows to MAL watchlist...");
 
 			//TODO: check which shows are already on watchlist and only update missing/changed ones
@@ -92,7 +95,7 @@ namespace HiAnimeToMAL
 			try
 			{
 				string? Content = File.ReadAllText(Path);
-				if (Content == null) return default;
+				if (Content == null) return null;
 
 				return JsonConvert.DeserializeObject<Watchlist>(Content);
 			}
@@ -114,12 +117,18 @@ namespace HiAnimeToMAL
 			this.ClientId = ClientId;
 		}
 
+		/// <summary>
+        /// Updates / Adds a show to the specified watchlist.
+        /// </summary>
+        /// <param name="AnimeId">Id of the show to update/add.</param>
+        /// <param name="Status">Watch status - possible values are: watching, on_hold, plan_to_watch, completed, dropped</param>
+        /// <returns>True on success, false otherwise.</returns>
 		public bool UpdateWatchlist(ulong AnimeId, string Status)
 		{
-			var Client = new HttpClient();
+			HttpClient Client = new HttpClient();
 			Client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", AccessToken);
 
-			var Content = new FormUrlEncodedContent(new Dictionary<string, string>
+			FormUrlEncodedContent Content = new FormUrlEncodedContent(new Dictionary<string, string>
 			{
 				["status"] = Status
 			});
@@ -127,10 +136,12 @@ namespace HiAnimeToMAL
 			int MaxRetries = 3;
 			int Retries = 0;
 
+			//retry for x times - otherwise tiny connection spikes would lead to errors 
 			while (Retries < MaxRetries)
 			{
 				try
 				{
+					//send PATCH and get response
 					HttpResponseMessage RawResponse = Client.PatchAsync($"https://api.myanimelist.net/v2/anime/{AnimeId}/my_list_status", Content).Result;
 
 					if (!RawResponse.IsSuccessStatusCode)
@@ -151,6 +162,12 @@ namespace HiAnimeToMAL
 			return false;
 		}
 
+		/// <summary>
+        /// Authorizes the client to access a users watchlist (opens a browser pop-up) and creates a MALAPI object.
+        /// </summary>
+        /// <param name="ClientId">MAL client id.</param>
+        /// <param name="ClientSecret">MAL client secret.</param>
+        /// <returns>MALAPI object on success, otherwise null.</returns>
 		public static MALAPI? CreateAndAuthorize(string ClientId, string ClientSecret)
 		{
 			//obtain "AccessCode" from client/user
@@ -209,7 +226,7 @@ namespace HiAnimeToMAL
 			string PostResponse = RawPostResponse.Content.ReadAsStringAsync().Result;
 			MalTokenResponse? Token = JsonConvert.DeserializeObject<MalTokenResponse>(PostResponse);
 
-			if(Token == null || !RawPostResponse.IsSuccessStatusCode)
+			if (Token == null || !RawPostResponse.IsSuccessStatusCode)
 			{
 				Console.WriteLine("Failed to get MAL AccessToken!\n" + PostResponse);
 				return null;

@@ -21,7 +21,3 @@ This tool reads the HiAnime exported json containing the watchlist data and adds
 4. Build this tool with the command `dotnet build`, or open the project in Visual Studio and press "Build"
 5. Run this tool with the command `dotnet run [MAL ClientId] [MAL Client Secret] [Watchlist Path]`, or start it in Visual Studio (requires to add these parameters in the startup/debug settings)
 6. [optional] Import your MAL watchlist on your new streaming site of choice. Enjoy!:) 
-
-## ToDo
-
-- Check which shows are already on the MAL watchlist before adding/updating -> reduces API calls
